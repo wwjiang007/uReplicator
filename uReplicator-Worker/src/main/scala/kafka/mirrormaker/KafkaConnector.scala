@@ -116,7 +116,7 @@ class KafkaConnector(private val consumerIdString: String,
     if (!deleteOnly) {
       commitOffsetToZooKeeper(topicAndPartition, OffsetAndMetadata(pti.getConsumeOffset()).offset)
     }
-    // if we change the committed offset manually after we delete the topic,
+    // if we manually change the committed offset to an out-of-range offset after we delete the topic,
     // it can guarantee to update the offset for the first time when we add back the topic
     checkpointedZkOffsets.remove(topicAndPartition)
 
