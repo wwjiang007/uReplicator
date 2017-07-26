@@ -26,7 +26,6 @@ import kafka.utils.{Pool, ZKGroupTopicDirs, ZkUtils}
 import org.I0Itec.zkclient.ZkClient
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 /**
  * This class handles the consumers interaction with zookeeper
@@ -43,7 +42,6 @@ class KafkaConnector(private val consumerIdString: String,
   private val fetcherManager: CompactConsumerFetcherManager = new CompactConsumerFetcherManager(consumerIdString, config, zkClient)
   private val zkUtils = ZkUtils.apply(zkClient, false)
   private val cluster = zkUtils.getCluster()
-  private var allPartitionInfos = new mutable.MutableList[PartitionTopicInfo]()
 
   // Using a concurrent hash map for efficiency. Without this we will need a lock
   val topicRegistry = new ConcurrentHashMap[TopicAndPartition, PartitionTopicInfo]()
@@ -87,7 +85,7 @@ class KafkaConnector(private val consumerIdString: String,
     }
 
     val offsets = fetchOffsetFromZooKeeper(TopicAndPartition(topic, partition))
-    var offset = offsets._2.offset
+    val offset = offsets._2.offset
     info("Fetched offset : %d, for topic: %s , partition %d".format(offset, topic, partition))
     val consumedOffset = new AtomicLong(offset)
     val fetchedOffset = new AtomicLong(offset)
@@ -118,6 +116,9 @@ class KafkaConnector(private val consumerIdString: String,
     if (!deleteOnly) {
       commitOffsetToZooKeeper(topicAndPartition, OffsetAndMetadata(pti.getConsumeOffset()).offset)
     }
+    // if we change the committed offset manually after we delete the topic,
+    // it can guarantee to update the offset for the first time when we add back the topic
+    checkpointedZkOffsets.remove(topicAndPartition)
 
     topicRegistry.remove(topicAndPartition)
     info("Finish deleteTopicPartition in KafkaConnector for topic: %s , partition %d".format(topic, partition))
